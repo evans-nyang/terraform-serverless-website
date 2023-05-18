@@ -40,9 +40,9 @@ module "cloudfront" {
 
   behaviors = [
     {
-      path_pattern = "/*"
+      path_pattern    = "/*"
       allowed_methods = ["GET", "HEAD", "OPTIONS"]
-      cached_methods = ["GET", "HEAD"]
+      cached_methods  = ["GET", "HEAD"]
 
       forwarded_values = {
         query_string = false
