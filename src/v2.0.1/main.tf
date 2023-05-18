@@ -13,91 +13,95 @@ provider "aws" {
   region = var.region
 }
 
-module "s3_bucket" {
-  source = "terraform-aws-modules/s3-bucket/aws"
-
-  bucket_name = var.bucket_name
-  acl         = "private"
-
-  enable_versioning = true
-
-  tags = {
-    Environment = "production"
-  }
+resource "aws_s3_bucket" "website_bucket" {
+  bucket = var.bucket_name
 }
 
-module "cloudfront" {
-  source = "terraform-aws-modules/cloudfront/aws"
+resource "aws_s3_account_public_access_block" "website_bucket" {
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
 
-  price_class = "PriceClass_All"
+resource "aws_s3_object" "website_bucket" {
+  bucket       = aws_s3_bucket.website_bucket.id
+  key          = "index.html"
+  source       = "../templates/index.html"
+  content_type = "text/html"
+}
 
-  origins = [
-    {
-      domain_name = module.s3_bucket.bucket_domain_name
-      origin_id   = "s3-origin"
-    }
-  ]
+resource "aws_cloudfront_distribution" "cdn_static_site" {
+  enabled             = true
+  is_ipv6_enabled     = true
+  default_root_object = "index.html"
+  comment             = "my cloudfront in front of the s3 bucket"
 
-  behaviors = [
-    {
-      path_pattern    = "/*"
-      allowed_methods = ["GET", "HEAD", "OPTIONS"]
-      cached_methods  = ["GET", "HEAD"]
+  origin {
+    domain_name              = aws_s3_bucket.website_bucket.bucket_regional_domain_name
+    origin_id                = "my-s3-origin"
+    origin_access_control_id = aws_cloudfront_origin_access_control.default.id
+  }
 
-      forwarded_values = {
-        query_string = false
-        cookies = {
-          forward = "none"
-        }
+  default_cache_behavior {
+    min_ttl                = 0
+    default_ttl            = 0
+    max_ttl                = 0
+    viewer_protocol_policy = "redirect-to-https"
+
+    allowed_methods  = ["GET", "HEAD", "OPTIONS"]
+    cached_methods   = ["GET", "HEAD"]
+    target_origin_id = "my-s3-origin"
+
+    forwarded_values {
+      query_string = false
+      cookies {
+        forward = "none"
       }
-
-      min_ttl                = 0
-      default_ttl            = 0
-      max_ttl                = 0
-      viewer_protocol_policy = "redirect-to-https"
-
-      target_origin_id = "s3-origin"
     }
-  ]
+  }
 
-  restrictions = {
-    geo_restriction = {
+  restrictions {
+    geo_restriction {
+      locations        = []
       restriction_type = "none"
     }
   }
 
-  default_root_object = "index.html"
-
   viewer_certificate {
-    acm_certificate_arn = "<ACM_CERT_ARN>"
-    ssl_support_method  = "sni-only"
+    cloudfront_default_certificate = true
   }
 }
 
-resource "aws_iam_policy" "cloudfront_policy" {
-  name = "cloudfront-access-to-s3"
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect   = "Allow"
-        Action   = ["s3:GetObject"]
-        Resource = "${module.s3_bucket.arn}/*"
-        Condition = {
-          StringEquals = {
-            "aws:SourceArn" = module.cloudfront.cloudfront_arn
-          }
-        }
-        Principal = {
-          AWS = "arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity ${module.cloudfront.origin_access_identity}"
-        }
-      }
-    ]
-  })
+resource "aws_cloudfront_origin_access_control" "default" {
+  name                              = var.access_control
+  description                       = var.oac_description
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
 }
 
-resource "aws_iam_policy_attachment" "cloudfront_policy_attachment" {
-  policy_arn = aws_iam_policy.cloudfront_policy.arn
-  roles      = ["<ROLE_NAME>"]
+output "cloudfront_url" {
+  value = aws_cloudfront_distribution.cdn_static_site.domain_name
+}
+
+data "aws_iam_policy_document" "website_bucket" {
+  statement {
+    actions   = ["s3:GetObject"]
+    resources = ["${aws_s3_bucket.website_bucket.arn}/*"]
+    principals {
+      type        = "Service"
+      identifiers = ["cloudfront.amazonaws.com"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceArn"
+      values   = [aws_cloudfront_distribution.cdn_static_site.arn]
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "website_bucket_policy" {
+  bucket = aws_s3_bucket.website_bucket.id
+  policy = data.aws_iam_policy_document.website_bucket.json
 }
