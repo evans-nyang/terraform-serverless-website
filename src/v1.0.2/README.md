@@ -45,7 +45,7 @@ The Terraform configuration file (`main.tf`) defines the AWS resources required 
     terraform apply
     ```
 
-9. After successful deployment, you can access the website at the following URL:
+8. After successful deployment, you can access the website at the following URL:
     ```
     http://<bucket-name>.s3-<region>.amazonaws.com/index.html
     ```

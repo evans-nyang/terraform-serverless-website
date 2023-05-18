@@ -1,6 +1,6 @@
-# Terraform AWS Serverless Website v2.0.1
+# Terraform AWS Static Website Deployment v2.0.1
 
-This Terraform configuration deploys a serverless website on AWS using S3 buckets. It creates an S3 bucket to store the website files, sets up public access permissions, defines a bucket policy to allow public read access, and configures the website bucket for hosting.
+This Terraform configuration deploys a static website on AWS using S3 and CloudFront. It provisions an S3 bucket to store the website files, sets up access control for the bucket, and creates a CloudFront distribution to serve the website with caching and HTTPS support.
 
 ## Resource Configuration
 
