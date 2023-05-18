@@ -32,7 +32,9 @@ override.tf.json
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
+**/.terraformrc
+*.terraform*
 
-# terraform variables files
+# Ignore terraform variables files
 *.auto.tfvars
 *variables.tf
