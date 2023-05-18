@@ -37,4 +37,4 @@ terraform.rc
 
 # Ignore terraform variables files
 *.auto.tfvars
-*variables.tf
+# *variables.tf
