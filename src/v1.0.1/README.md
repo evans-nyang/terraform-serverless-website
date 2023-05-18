@@ -36,7 +36,7 @@ This Terraform configuration deploys a serverless website on AWS using S3 bucket
 
 9. After successful deployment, you can access the website at the following URL:
     ```
-    http://<bucket-name>.s3-website-<region>.amazonaws.com
+    http://<bucket-name>.s3-<region>.amazonaws.com/index.html
     ```
 
 
